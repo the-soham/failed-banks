@@ -57,13 +57,25 @@ if get_Selection == 'Year':
 
 elif get_Selection == 'State':
     get_state = st.sidebar.selectbox('**Select State**',df['state'].unique())
-    print(type(get_state))
     col1.metric("Banks failed in {}".format(get_state), len(df[df['state'] == get_state]), "1.2 °F")
     col2.metric("Estimated Loss", "$"+str(df[df['state'] == get_state]['cost'].sum()))
     col3.metric("Total Deposits", "$" + str(df[df['state'] == get_state]['qbfdep'].sum()))
     col4.metric("Total Assets",'$'+str(df[df['state'] == get_state]['qbfasset'].sum()))
 
 
+st.write('#')
+st.write('#')
+st.write('#')
+
+tab1, tab2= st.tabs(["Year", "States"])
+
+with tab1:
+   st.header("A cat")
+   st.image("https://static.streamlit.io/examples/cat.jpg", width=200)
+
+with tab2:
+   st.header("A dog")
+   st.image("https://static.streamlit.io/examples/dog.jpg", width=200)
 
 st.sidebar.markdown('''
 ---

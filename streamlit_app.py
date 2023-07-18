@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import calendar
 import plotly.io as pio
+import plotly.express as px
 pio.templates.default = "plotly"
 
 st.set_page_config(layout='wide')
@@ -61,13 +62,17 @@ if get_Selection == 'Year':
     col2.metric("Estimated Loss", "$"+str(banks_failed_year(fail_year)['cost'].sum()) + "M")
     col3.metric("Total Deposits", "$"+str(banks_failed_year(fail_year)['qbfdep'].sum()) + "M")
     col4.metric("Total Assets",'$'+str(banks_failed_year(fail_year)['qbfasset'].sum()) + "M")
+else:
+    fail_year = '2023'
 
-elif get_Selection == 'State':
+if get_Selection == 'State':
     get_state = st.sidebar.selectbox('**Select State**',df['state'].unique())
     col1.metric("Banks failed in {}".format(get_state), len(df[df['state'] == get_state]),)
     col2.metric("Estimated Loss", "$"+str(df[df['state'] == get_state]['cost'].sum()) + "M")
     col3.metric("Total Deposits", "$" + str(df[df['state'] == get_state]['qbfdep'].sum())+ "M")
     col4.metric("Total Assets",'$'+str(df[df['state'] == get_state]['qbfasset'].sum())+ "M")
+else:
+    get_state = 'CA'
 
 
 st.write('#')
@@ -75,9 +80,9 @@ st.write('#')
 st.write('#')
 
 
-def get_year_state(df, fail_year):
+def get_year_loss(df, fail_year):
     yr  = df[df['faildate'].dt.strftime('%Y') == str(fail_year)]
-    print(yr.head())
+
     df_yr = yr.groupby(['year','month'])['month'].count().reset_index(name='counts')
     df_yr = df_yr.set_index('month')
     df_yr = df_yr.reindex(np.arange(1, 13)).fillna(0.0)
@@ -96,11 +101,24 @@ def get_year_state(df, fail_year):
     df_final['month'] = df_final['month'].apply(lambda x: calendar.month_abbr[x])
 
     return df_final
+
+
+def get_year_state(df,get_state):
+    st = df[df['state'] == str(get_state)]
+    df_st = st.groupby(['year','state'])['year'].count().reset_index(name = 'count')
+    df_st = df_st.set_index('year')
+    df_st = df_st.reindex(np.arange(2000,2024)).fillna(0.0)
+    df_st['state'] = str(get_state)
+    df_st = df_st.reset_index()
+    return df_st
+
+states_failed_df = get_year_state(df,get_state)
+
     
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def get_fig(x, y1, y2, yr = fail_year):
+def get_fig_plot1(x, y1, y2, yr = fail_year):
 # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -131,7 +149,11 @@ def get_fig(x, y1, y2, yr = fail_year):
 
     return fig
 
-final_df = get_year_state(df, fail_year)
+def plot2(df,st_name = str(get_state)):
+    fig =  px.line(df, x="year", y="count", title='Banks failed in the state of {}'.format(st_name))
+    return fig
+
+final_df = get_year_loss(df, fail_year)
 x = final_df['month']
 y1 = final_df['loss']
 y2 = final_df['counts']
@@ -139,11 +161,11 @@ tab1, tab2= st.tabs(["Year","States"])
 
 with tab1:
    st.header("Plot for Year Wise Failures")
-   st.plotly_chart(get_fig(x, y1, y2), theme="streamlit", use_container_width=True)
+   st.plotly_chart(get_fig_plot1(x, y1, y2), theme="streamlit", use_container_width=True)
 
 with tab2:
    st.header("Plot for State Wise Failures")
-   st.image("https://static.streamlit.io/examples/dog.jpg", width=200)
+   st.plotly_chart(plot2(states_failed_df), theme="streamlit", use_container_width=True)
 
 st.sidebar.markdown('''
 ---

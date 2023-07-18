@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import calendar
+import plotly.io as pio
+pio.templates.default = "plotly"
 
 st.set_page_config(layout='wide')
 st.title('🎈 Failed Banks Analysis')
@@ -26,6 +29,10 @@ def get_data(csv1, csv2):
 
 df = get_data('bank-data.csv','banklist.csv')
 df['faildate'] = pd.to_datetime(df['faildate'])
+df['year'] = df['faildate'].dt.year
+df['month']=df['faildate'].dt.month
+df['Month_Year'] = df['faildate'].dt.to_period('M')
+
 
 def banks_failed_year(year):
     df_year = df[df['faildate'].dt.strftime('%Y') == str(year)]
@@ -50,31 +57,92 @@ col1, col2, col3, col4 = st.columns(4)
 
 if get_Selection == 'Year':
     fail_year = st.sidebar.selectbox('**Select Year**', df['faildate'].dt.year.unique())
-    col1.metric("Banks failed in {}".format(str(fail_year)), str(len(banks_failed_year(fail_year))), "1.2 °F")
-    col2.metric("Estimated Loss", "$"+str(banks_failed_year(fail_year)['cost'].sum()))
-    col3.metric("Total Deposits", "$"+str(banks_failed_year(fail_year)['qbfdep'].sum()))
-    col4.metric("Total Assets",'$'+str(banks_failed_year(fail_year)['qbfasset'].sum()))
+    col1.metric("Banks failed in {}".format(str(fail_year)), str(len(banks_failed_year(fail_year))))
+    col2.metric("Estimated Loss", "$"+str(banks_failed_year(fail_year)['cost'].sum()) + "M")
+    col3.metric("Total Deposits", "$"+str(banks_failed_year(fail_year)['qbfdep'].sum()) + "M")
+    col4.metric("Total Assets",'$'+str(banks_failed_year(fail_year)['qbfasset'].sum()) + "M")
 
 elif get_Selection == 'State':
     get_state = st.sidebar.selectbox('**Select State**',df['state'].unique())
-    col1.metric("Banks failed in {}".format(get_state), len(df[df['state'] == get_state]), "1.2 °F")
-    col2.metric("Estimated Loss", "$"+str(df[df['state'] == get_state]['cost'].sum()))
-    col3.metric("Total Deposits", "$" + str(df[df['state'] == get_state]['qbfdep'].sum()))
-    col4.metric("Total Assets",'$'+str(df[df['state'] == get_state]['qbfasset'].sum()))
+    col1.metric("Banks failed in {}".format(get_state), len(df[df['state'] == get_state]),)
+    col2.metric("Estimated Loss", "$"+str(df[df['state'] == get_state]['cost'].sum()) + "M")
+    col3.metric("Total Deposits", "$" + str(df[df['state'] == get_state]['qbfdep'].sum())+ "M")
+    col4.metric("Total Assets",'$'+str(df[df['state'] == get_state]['qbfasset'].sum())+ "M")
 
 
 st.write('#')
 st.write('#')
 st.write('#')
 
-tab1, tab2= st.tabs(["Year", "States"])
+
+def get_year_state(df, fail_year):
+    yr  = df[df['faildate'].dt.strftime('%Y') == str(fail_year)]
+    print(yr.head())
+    df_yr = yr.groupby(['year','month'])['month'].count().reset_index(name='counts')
+    df_yr = df_yr.set_index('month')
+    df_yr = df_yr.reindex(np.arange(1, 13)).fillna(0.0)
+    df_yr['year'] = fail_year
+    df_yr = df_yr .reset_index()
+    
+
+    df_cost = yr.groupby(['year','month'])['cost'].sum().reset_index(name='loss')
+    df_cost = df_cost.set_index('month')
+    df_cost = df_cost.reindex(np.arange(1, 13)).fillna(0.0)
+    df_cost['year'] = fail_year
+    df_cost = df_cost.reset_index()
+   
+
+    df_final = pd.merge(df_yr, df_cost)
+    df_final['month'] = df_final['month'].apply(lambda x: calendar.month_abbr[x])
+
+    return df_final
+    
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+def get_fig(x, y1, y2, yr = fail_year):
+# Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Add traces
+    fig.add_trace(
+        go.Scatter(x = x,y = y1, name="Loss ", line_color='#ffe476'),
+        secondary_y=False,
+    )
+
+    fig.add_trace(
+        go.Scatter(x = x,y = y2, name="Bank Failures",line=dict(color="#0000ff")),
+        secondary_y=True,
+    )
+
+    # Add figure title
+    fig.update_layout(
+        title_text="Loss and Bank Failures in {}".format(yr)
+    )
+
+    # Set x-axis title
+    fig.update_xaxes(title_text="Months ")
+
+    # Set y-axes titles
+    fig.update_yaxes(title_text="<b>Total loss ($m)</b>", secondary_y=False)
+    fig.update_yaxes(title_text="<b>Number ofBanks Failed </b>", secondary_y=True)
+
+    fig.for_each_trace(lambda t: t.update(line=dict(color=t.marker.color)))
+
+    return fig
+
+final_df = get_year_state(df, fail_year)
+x = final_df['month']
+y1 = final_df['loss']
+y2 = final_df['counts']
+tab1, tab2= st.tabs(["Year","States"])
 
 with tab1:
-   st.header("A cat")
-   st.image("https://static.streamlit.io/examples/cat.jpg", width=200)
+   st.header("Plot for Year Wise Failures")
+   st.plotly_chart(get_fig(x, y1, y2), theme="streamlit", use_container_width=True)
 
 with tab2:
-   st.header("A dog")
+   st.header("Plot for State Wise Failures")
    st.image("https://static.streamlit.io/examples/dog.jpg", width=200)
 
 st.sidebar.markdown('''

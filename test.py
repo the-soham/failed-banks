@@ -154,3 +154,67 @@ if main== "Visualization":
                  From the plot, we can observe that most of the bank failures occur at the start of the new quarter."""
                  )
     
+    st.markdown('#')
+    st.markdown('---')
+    st.markdown('#')
+    st.markdown('### In which  have the banks failed the most?')
+    st.plotly_chart(plot_month(df), theme="streamlit", use_container_width=True)
+    with st.expander("See Analysis"):
+        st.write(
+                """
+                 From the plot, we can observe that most of the bank failures occur at the start of the new quarter."""
+                 )
+        
+
+    st.markdown('#')
+    st.markdown('---')
+    st.markdown('#')
+
+    sel = st.radio(
+        "**Make the choice about Year/State**",
+        ('Year', 'State'), horizontal=True)
+       
+    if sel == 'Year':
+        fail_year = st.selectbox("**Select Year**", df["faildate"].dt.year.unique())
+
+    if sel == 'State':
+        get_state = st.selectbox("**Select State**", df["state"].unique())
+
+
+            
+       
+
+    st.markdown("### Metrics")
+    col1, col2, col3, col4 = st.columns(4)
+
+    if sel == "Year":
+        #fail_year = st.sidebar.selectbox("**Select Year**", df["faildate"].dt.year.unique())
+        col1.metric(
+            "Banks failed in {}".format(str(fail_year)),
+            str(len(banks_failed_year(fail_year))),
+        )
+        col2.metric(
+            "Estimated Loss", "$" + str(banks_failed_year(fail_year)["cost"].sum()) + "M"
+        )
+        col3.metric(
+            "Total Deposits", "$" + str(banks_failed_year(fail_year)["qbfdep"].sum()) + "M"
+        )
+        col4.metric(
+            "Total Assets", "$" + str(banks_failed_year(fail_year)["qbfasset"].sum()) + "M"
+        )
+
+    if sel == "State":
+    #get_state = st.sidebar.selectbox("**Select State**", df["state"].unique())
+        col1.metric(
+            "Banks failed in {}".format(get_state),
+            len(df[df["state"] == get_state]),
+        )
+        col2.metric(
+            "Estimated Loss", "$" + str(df[df["state"] == get_state]["cost"].sum()) + "M"
+        )
+        col3.metric(
+            "Total Deposits", "$" + str(df[df["state"] == get_state]["qbfdep"].sum()) + "M"
+        )
+        col4.metric(
+            "Total Assets", "$" + str(df[df["state"] == get_state]["qbfasset"].sum()) + "M"
+        )
